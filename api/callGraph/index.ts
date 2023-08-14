@@ -27,14 +27,6 @@ interface Response {
 // Define a TeamsfxContext type as an object that can contain any key-value pairs.
 type TeamsfxContext = { [key: string]: any };
 
-// Define an enum called FilesType with four possible values for different types of Microsoft Office files.
-enum FilesType {
-  WORD = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  EXCEL = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  PPT = "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  VISIO = "application/vnd.ms-visio.drawing",
-}
-
 /**
  * This function handles requests from teamsfx client.
  * The HTTP request should contain an SSO token queried from Teams in the header.

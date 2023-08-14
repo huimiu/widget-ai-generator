@@ -1,10 +1,11 @@
+import "highlight.js/styles/github.css";
+
+import hljs from "highlight.js";
+
 import { Button, Text } from "@fluentui/react-components";
-import {
-  ArrowDownload24Regular,
-  Code24Regular,
-  Copy24Regular,
-} from "@fluentui/react-icons";
-import { BaseWidget } from "@microsoft/teamsfx-react";
+import { ArrowDownload24Regular, Code24Regular, Copy24Regular } from "@fluentui/react-icons";
+import { BaseWidget, IWidgetClassNames } from "@microsoft/teamsfx-react";
+import "../styles/CodeCard.css";
 
 export class CodeCard extends BaseWidget<any, any> {
   override header() {
@@ -25,6 +26,28 @@ export class CodeCard extends BaseWidget<any, any> {
   }
 
   override body() {
-    return <div>{this.props.content.code}</div>;
+    return (
+      <pre>
+        <code>{this.props.content.code}</code>
+      </pre>
+    );
   }
+
+  override styling(): IWidgetClassNames {
+    return { root: "code-card-root", body: "code-card-body" };
+  }
+
+  async componentDidMount() {
+    this.updateCodeSyntaxHighlighting();
+  }
+
+  componentDidUpdate() {
+    this.updateCodeSyntaxHighlighting();
+  }
+
+  updateCodeSyntaxHighlighting = () => {
+    document.querySelectorAll("pre code").forEach((block) => {
+      hljs.highlightBlock(block as HTMLElement);
+    });
+  };
 }
