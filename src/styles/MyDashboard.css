@@ -21,11 +21,27 @@
   margin-left: -10px;
 }
 
+.generating-style {
+  position: absolute;
+  width: 100%;
+  margin-top: -50px;
+  margin-left: -10px;
+}
+
+.generating-style .wrapper {
+  display: grid;
+  justify-content: center;
+}
+
 .ask-style div {
   display: grid;
   column-gap: 10px;
   grid-template-columns: max-content max-content;
   justify-content: center;
+}
+
+.ask-style span {
+  width: 500px;
 }
 
 .spinner-layout {
