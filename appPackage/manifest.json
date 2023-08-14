@@ -15,12 +15,12 @@
         "outline": "outline.png"
     },
     "name": {
-        "short": "team-central-dashboard-${{TEAMSFX_ENV}}",
-        "full": "Full name for team-central-dashboard"
+        "short": "widget-ai-generator-${{TEAMSFX_ENV}}",
+        "full": "Full name for widget-ai-generator"
     },
     "description": {
-        "short": "Short description of team-central-dashboard",
-        "full": "Full description of team-central-dashboard"
+        "short": "Short description of widget-ai-generator",
+        "full": "Full description of widget-ai-generator"
     },
     "accentColor": "#FFFFFF",
     "bots": [],
@@ -29,10 +29,7 @@
         {
             "configurationUrl": "${{TAB_ENDPOINT}}/index.html#/config",
             "canUpdateConfiguration": true,
-            "scopes": [
-                "team",
-                "groupchat"
-            ]
+            "scopes": ["team", "groupchat"]
         }
     ],
     "staticTabs": [
@@ -41,18 +38,11 @@
             "name": "Dashboard",
             "contentUrl": "${{TAB_ENDPOINT}}/index.html#/tab",
             "websiteUrl": "${{TAB_ENDPOINT}}/index.html#/tab",
-            "scopes": [
-                "personal"
-            ]
+            "scopes": ["personal"]
         }
     ],
-    "permissions": [
-        "identity",
-        "messageTeamMembers"
-    ],
-    "validDomains": [
-        "${{TAB_DOMAIN}}"
-    ],
+    "permissions": ["identity", "messageTeamMembers"],
+    "validDomains": ["${{TAB_DOMAIN}}"],
     "webApplicationInfo": {
         "id": "${{AAD_APP_CLIENT_ID}}",
         "resource": "api://${{TAB_DOMAIN}}/${{AAD_APP_CLIENT_ID}}"
