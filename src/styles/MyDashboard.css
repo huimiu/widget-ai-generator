@@ -14,14 +14,18 @@
   grid-template-rows: 1fr 1fr;
 }
 
-.img-style {
+.ask-style {
   position: absolute;
   width: 100%;
-  margin-left: -20px;
-  margin-top: -64px;
-  z-index: -1;
-  max-height: 216px;
-  min-height: 120px;
+  margin-top: -50px;
+  margin-left: -10px;
+}
+
+.ask-style div {
+  display: grid;
+  column-gap: 10px;
+  grid-template-columns: max-content max-content;
+  justify-content: center;
 }
 
 .spinner-layout {
