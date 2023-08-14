@@ -7,13 +7,9 @@
 import "isomorphic-fetch";
 
 import { Context, HttpRequest } from "@azure/functions";
-import { Client } from "@microsoft/microsoft-graph-client";
-import { TokenCredentialAuthenticationProvider } from "@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials";
 import {
   ApiKeyLocation,
   ApiKeyProvider,
-  AppCredential,
-  AppCredentialAuthConfig,
   AxiosInstance,
   OnBehalfOfCredentialAuthConfig,
   OnBehalfOfUserCredential,
@@ -162,36 +158,12 @@ async function handleRequest(
   reqData: any
 ): Promise<any> {
   // Switch statement to handle different graphType and method combinations
-  switch (`${graphType}:${method}`) {
-    // If graphType is "calendar" and method is "GET"
-    case "calendar:GET": {
-      // Call getCalendarEvents function to get calendar events
-      const events = await getCalendarEvents(oboCredential);
-      return { eventResult: events };
-    }
-    // If graphType is "task" and method is "GET"
-    case "task:GET": {
-      // Call getTasksInfo function to get task information
-      const tasks = await getTasksInfo(oboCredential);
-      return { taskResult: tasks };
-    }
-    // If graphType is "task" and method is "POST"
-    case "task:POST": {
-      // Call createTask function to create a new task
-      const tasks = await createTask(oboCredential, reqData);
-      return { taskResult: tasks };
-    }
-    // If graphType is "files" and method is "GET"
-    case "files:GET": {
-      // Call getFiles function to get files
-      const files = await getFiles(oboCredential);
-      return { filesResult: files };
-    }
-    // If graphType is "messages" and method is "GET"
-    case "messages:GET": {
+  switch (`${graphType}:${method}`) {    
+    // If graphType is "generate" and method is "POST"
+    case "generate:POST": {
       // Call getChatMessages function to get chat messages
-      const messages = await getChatMessages(oboCredential);
-      return { messagesResult: messages };
+      const generated = await callOAI(reqData.question);
+      return { generated: generated };
     }
     // If no matching graphType and method combination is found
     default: {
@@ -200,363 +172,30 @@ async function handleRequest(
   }
 }
 
-/**
- * Retrieves the user's calendar events for the current day.
- *
- * @param {OnBehalfOfUserCredential} oboCredential - The on-behalf-of user credential.
- * @returns A promise that resolves with an array of calendar events.
- */
-async function getCalendarEvents(oboCredential: OnBehalfOfUserCredential) {
-  // Create an instance of the TokenCredentialAuthenticationProvider by passing the tokenCredential instance and options to the constructor
-  const authProvider = new TokenCredentialAuthenticationProvider(
-    oboCredential,
-    {
-      scopes: ["Calendars.Read"],
-    }
-  );
-
-  // Initialize Graph client instance with authProvider
-  const graphClient = Client.initWithMiddleware({
-    authProvider: authProvider,
-  });
-
-  // Set the end of the day to 23:59:59.999
-  const endOfDay = new Date();
-  endOfDay.setUTCHours(23, 59, 59, 999);
-
-  // Get the user's calendar events for the current day
-  const { value: calendarValue } = await graphClient
-    .api(
-      `/me/events?$top=2&$select=subject,bodyPreview,organizer,attendees,start,end,location,onlineMeeting&$filter=start/dateTime ge '${new Date().toUTCString()}' and start/dateTime lt '${endOfDay.toUTCString()}'`
-    )
-    .get();
-
-  // Map the calendar events to a simpler format
-  const calendarItems = calendarValue
-    .map(({ start, end, subject, location, onlineMeeting }) => ({
-      startTime: start,
-      endTime: end,
-      title: subject,
-      location: location.displayName,
-      url: onlineMeeting?.joinUrl,
-    }))
-    .reverse();
-
-  return calendarItems;
-}
-
-/**
- * Retrieves the tasks that are not completed from the user's to-do list.
- *
- * @param {OnBehalfOfUserCredential} oboCredential - The on-behalf-of user credential.
- * @returns {Promise<TaskModel[]>} - A promise that resolves with an array of tasks.
- */
-async function getTasksInfo(oboCredential: OnBehalfOfUserCredential) {
-  // Create an instance of the TokenCredentialAuthenticationProvider by passing the tokenCredential instance and options to the constructor
-  const authProvider = new TokenCredentialAuthenticationProvider(
-    oboCredential,
-    {
-      scopes: ["Tasks.ReadWrite"],
-    }
-  );
-
-  // Initialize Graph client instance with authProvider
-  const graphClient = Client.initWithMiddleware({
-    authProvider: authProvider,
-  });
-
-  // Get the user's to-do lists
-  const { value: tasklists } = await graphClient.api("/me/todo/lists").get();
-
-  // Get the ID of the first to-do list
-  const { id: todoTaskListId } = tasklists[0];
-
-  // Get the tasks from the to-do list that are not completed and limit the results to 3
-  const { value: tasksInfo } = await graphClient
-    .api(
-      `/me/todo/lists/${todoTaskListId}/tasks?$filter=status ne 'completed'&$top=3`
-    )
-    .get();
-
-  // Map the tasks to a simpler format
-  const tasks = tasksInfo.map(({ id, title, status, importance, content }) => ({
-    id,
-    name: title,
-    status,
-    importance,
-    content,
-  }));
-
-  return tasks;
-}
-
-/**
- * Creates a new task in the user's to-do list and retrieves the tasks that are not completed.
- *
- * @param {OnBehalfOfUserCredential} oboCredential - The on-behalf-of user credential.
- * @param {any} reqData - The request data containing the task title.
- * @returns A promise that resolves with an array of tasks.
- */
-async function createTask(
-  oboCredential: OnBehalfOfUserCredential,
-  reqData: any
-) {
-  // Create an instance of the TokenCredentialAuthenticationProvider by passing the tokenCredential instance and options to the constructor
-  const authProvider = new TokenCredentialAuthenticationProvider(
-    oboCredential,
-    {
-      scopes: ["Tasks.ReadWrite", "User.Read"],
-    }
-  );
-
-  // Initialize Graph client instance with authProvider
-  const graphClient = Client.initWithMiddleware({
-    authProvider: authProvider,
-  });
-
-  // Get the user's to-do lists
-  const { value: tasklists } = await graphClient.api("/me/todo/lists").get();
-
-  // Get the ID of the first to-do list
-  const { id: todoTaskListId } = tasklists[0];
-
-  // Create a new task in the user's to-do list with the provided title
-  await graphClient
-    .api(`/me/todo/lists/${todoTaskListId}/tasks`)
-    .post({ title: reqData.taskTitle });
-
-  // Import the TeamsFx SDK and create a new instance for the app identity
-  const authConfig: AppCredentialAuthConfig = {
-    authorityHost: config.authorityHost,
-    clientId: config.clientId,
-    tenantId: config.tenantId,
-    clientSecret: config.clientSecret,
-  };
-  const appCredential: AppCredential = new AppCredential(authConfig);
-
-  // Send an activity notification to the user's Teams activity feed
-  sendActivityNotification(appCredential, graphClient);
-
-  // Get the tasks from the to-do list that are not completed and limit the results to 3
-  const { value: tasksInfo } = await graphClient
-    .api(
-      `/me/todo/lists/${todoTaskListId}/tasks?$filter=status ne 'completed'&$top=3`
-    )
-    .get();
-
-  // Map the tasks to a simpler format
-  const tasks = tasksInfo.map(({ id, title, status, importance, content }) => ({
-    id,
-    name: title,
-    status,
-    importance,
-    content,
-  }));
-
-  return tasks;
-}
-
-/**
- * Sends an activity notification to the user's Teams activity feed.
- *
- * @param {TeamsFx} teamsfxApp - The TeamsFx instance for the app identity.
- * @param {Client} graphClient - The Microsoft Graph client.
- */
-async function sendActivityNotification(
-  appCredential: AppCredential,
-  graphClient: Client
-) {
-  try {
-    // Create an instance of the TokenCredentialAuthenticationProvider by passing the tokenCredential instance and options to the constructor
-    const authProvider = new TokenCredentialAuthenticationProvider(
-      appCredential,
-      {
-        scopes: ["https://graph.microsoft.com/.default"],
-      }
-    );
-    let appGraphClient: Client = Client.initWithMiddleware({
-      authProvider: authProvider,
-    });
-
-    // Get user ID
-    const userProfile = await graphClient.api("/me").get();
-    const userId = userProfile["id"];
-
-    // Construct the API path to retrieve the app installation information
-    const apiPath = `/users/${userId}/teamwork/installedApps?$expand=teamsApp,teamsAppDefinition&$filter=teamsApp/externalId eq '${config.teamsAppId}'`;
-    const appInstallationInfo = await appGraphClient.api(apiPath).get();
-
-    // Extract the installation ID from the app installation info
-    const appArray = appInstallationInfo["value"][0];
-    const installationId = appArray["id"];
-
-    // Create the post body for the activity notification
-    let postbody = {
-      topic: {
-        source: "entityUrl",
-        value: `https://graph.microsoft.com/v1.0/users/${userId}/teamwork/installedApps/${installationId}`,
-      },
-      activityType: "taskCreated",
-      previewText: {
-        content: "Task Created",
-      },
-    };
-
-    // Send the activity notification to the user's Teams activity feed
-    await appGraphClient
-      .api("users/" + userId + "/teamwork/sendActivityNotification")
-      .post(postbody);
-  } catch (error) {
-    console.error("sendActivityNotification error: ", error);
-  }
-}
-
-/**
- * Retrieves the user's recently accessed files.
- *
- * @param {OnBehalfOfUserCredential} oboCredential - The on-behalf-of user credential.
- * @returns A promise that resolves with an array of files.
- */
-async function getFiles(oboCredential: OnBehalfOfUserCredential) {
-  // Create an instance of the TokenCredentialAuthenticationProvider by passing the tokenCredential instance and options to the constructor
-  const authProvider = new TokenCredentialAuthenticationProvider(
-    oboCredential,
-    {
-      scopes: ["Calendars.Read"],
-    }
-  );
-
-  // Initialize Graph client instance with authProvider
-  const graphClient = Client.initWithMiddleware({
-    authProvider: authProvider,
-  });
-
-  // Get the user's recently accessed files
-  const { value: driveInfo } = await graphClient
-    .api(
-      "/me/drive/recent?$top=5&$select=id,name,webUrl,createdBy,lastModifiedBy,remoteItem"
-    )
-    .get();
-
-  // Map the files to a simpler format
-  const returnAnswer = driveInfo.map(
-    ({
-      id,
-      name,
-      remoteItem: {
-        createdBy,
-        lastModifiedBy,
-        createdDateTime,
-        lastModifiedDateTime,
-        file: { mimeType },
-        webDavUrl,
-        sharepointIds,
-      },
-      webUrl,
-    }) => ({
-      id,
-      name,
-      createdBy: createdBy.user.displayName,
-      lastModifiedBy: lastModifiedBy.user.displayName,
-      createdDateTime,
-      lastModifiedDateTime,
-      type: mimeType,
-      weburl: webUrl,
-      webDavurl: webDavUrl,
-      teamsurl: generateTeamsUrl({
-        webUrl,
-        mimeType,
-        webDavUrl,
-        sharepointIds: sharepointIds.siteUrl,
-      }),
-    })
-  );
-
-  return returnAnswer;
-}
-
-async function getChatMessages(oboCredential: OnBehalfOfUserCredential) {
-  const authProvider = new TokenCredentialAuthenticationProvider(
-    oboCredential,
-    {
-      scopes: ["Chat.Read", "Chat.ReadWrite", "Chat.ReadBasic"],
-    }
-  );
-  const client = Client.initWithMiddleware({
-    authProvider: authProvider,
-  });
-
-  let chats = await client
-    .api(
-      "/me/chats?$filter=viewpoint/lastMessageReadDateTime ge 2023-08-08&$select=id,topic,chatType"
-    )
-    .get();
-
-  // Get the chat IDs
-  let chatIds = chats.value.map((chat: { id: any }) => chat.id);
-
-  // Define a map to store the chat messages, keyed by chat ID, value is an array of messages
-  let chatMessagesMap = new Map();
-
-  // Get the messages from the chats
-  for (let chatId of chatIds) {
-    let messages = await client
-      .api(
-        `/chats/${chatId}/messages?$filter=lastModifiedDateTime gt 2023-08-08T00:00:00Z`
-      )
-      .get();
-
-    // Filter yesterday messages and messageType is message
-    let yesterdayMessages = messages.value.filter(
-      (message: {
-        createdDateTime: string;
-        messageType: string;
-        from: { user: object };
-      }) => {
-        if (message.messageType !== "message") {
-          return false;
-        }
-
-        if (message.from.user == null) {
-          return false;
-        }
-
-        let date = new Date(message.createdDateTime);
-        let yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        let yesterdayStart = new Date(yesterday);
-        yesterdayStart.setUTCHours(0, 0, 0, 0);
-        let yesterdayEnd = new Date(yesterday);
-        yesterdayEnd.setUTCHours(23, 59, 59, 999);
-        return date > yesterdayStart && date < yesterdayEnd;
-      }
-    );
-
-    // Extract createdDateTime, from/user/displayName, body/content from the messages
-    let yesterdayMessagesInfo = yesterdayMessages.map(
-      (message: {
-        createdDateTime: string;
-        from: { user: { displayName: any } };
-        body: { content: any };
-      }) => ({
-        createdDateTime: message.createdDateTime,
-        from: message.from.user?.displayName,
-        content: message.body.content,
-      })
-    );
-    chatMessagesMap.set(chatId, yesterdayMessagesInfo);
-  }
-
-  return chatMessagesMap;
-}
 
 async function callOAI(body: string) {
   try {
     const completionReq = {
-      prompt: `<|im_start|>system\nYou are an AI assistant that helps people find information.\n<|im_end|>\n<|im_start|>user\n${body}\n<|im_end|>\n<|im_start|>assistant`,
-      max_tokens: 4096,
-      temperature: 0.9,
-      stop: ["<|im_end|>"],
+      messages: [
+        {
+          content:
+            "You are a seasoned front-end developer with expertise in using the Teams Toolkit to develop Teams Apps, and you are also proficient in UX design, you can write css to make the front end more beautiful and the interaction more humanized. Currently, there is a requirement to add a widget to a Dashboard Tab App, and your assistance is needed to complete this task. Your mission is to create elegant TypeScript (ts), TypeScript React (tsx), and CSS code that aligns with user needs, leveraging your expertise in developing Teams Dashboard Tab Apps.\n\n## Goal\nAnalyze and disassemble the user's needs, and provide the definition of widgets, css, and related models and services.\n\n## Definition\n\t- Widgets are components that can be added to a dashboard page to show different types of information or functionality. Widgets can be customized and arranged to create interactive and dynamic dashboard pages for various purposes.\n\t- The @microsoft/teamsfx-react package provides a BaseWidget class that simplifies the creation of a widget. Developers can customize the widget by overriding methods from BaseWidget, such as getData, header, body, footer, loading and styling methods.\n\n## Constrains\n\t- Ensure that the code is free of syntax and compilation errors.\n\t- Design and implement based on user input, do not ask other information.\n\t- Use class components in React to define the widget and the widget class needs to inherit the BaseWidget in @microsoft/teamsfx-react.\n\t- Use the Fluent UI V9 framework to implement the widget, use @fluentui/react-icons to show some icons if needed.\nDo not import components and icons that do not exist.",
+          role: "system",
+        },
+        {
+          content: "Implement a list widget.",
+          role: "user",
+        },
+        {
+          content:
+            '[\n  {\n    "name": "ListWidget.tsx",\n    "code": "// ListWidget.tsx\\nimport \\"../styles/ListWidget.css\\";\\nimport { Button, Text } from \\"@fluentui/react-components\\";\\nimport { List28Filled, MoreHorizontal32Regular } from \\"@fluentui/react-icons\\";\\nimport { BaseWidget } from \\"@microsoft/teamsfx-react\\";\\nimport { ListModel } from \\"../models/listModel\\";\\nimport { getListData } from \\"../services/listService\\";\\ninterface IListWidgetState {\\n  data: ListModel[];\\n}\\nexport default class ListWidget extends BaseWidget<any, IListWidgetState> {\\n  async getData(): Promise<IListWidgetState> {\\n    return { data: getListData() };\\n  }\\n  header(): JSX.Element | undefined {\\n    return (\\n      <div>\\n        <List28Filled />\\n        <Text>Your List</Text>\\n        <Button icon={<MoreHorizontal32Regular />} appearance=\\"transparent\\" />\\n      </div>\\n    );\\n  }\\n  body(): JSX.Element | undefined {\\n    return (\\n      <div className=\\"list-body\\">\\n        {this.state.data?.map((t: ListModel) => {\\n          return (\\n            <div key={`${t.id}-div`}>\\n              <div className=\\"divider\\" />\\n              <Text className=\\"title\\">{t.title}</Text>\\n              <Text className=\\"content\\">{t.content}</Text>\\n            </div>\\n          );\\n        })}\\n      </div>\\n    );\\n  }\\n  footer(): JSX.Element | undefined {\\n    return <Button appearance=\\"primary\\">View Details</Button>;\\n  }\\n}"\n  },\n  {\n    "name": "ListWidget.css",\n    "code": ".list-body {\\n  display: grid;\\n  row-gap: var(--spacingVerticalS);\\n  align-content: start;\\n  min-width: 13.5rem;\\n}\\n.list-body div {\\n  display: grid;\\n}\\n.list-body .divider {\\n  margin: 0 -2rem 0.5rem;\\n  height: var(--strokeWidthThin);\\n  background: var(--colorNeutralStroke2);\\n}\\n.list-body .title {\\n  font-weight: var(--fontWeightSemibold);\\n}\\n.list-body .content {\\n  font-size: var(--fontSizeBase200);\\n}\\n.loading {\\n  display: grid;\\n  justify-content: center;\\n  height: 100%;\\n}\\n"\n  },\n  {\n    "name": "listModel.ts",\n    "code": "export interface ListModel {\\n  id: string;\\n  title: string;\\n  content: string;\\n}"\n  },\n  {\n    "name": "listService.ts",\n    "code": "import { ListModel } from \\"../models/listModel\\";\\n/**\\n * Retrive sample data\\n * @returns data for list widget\\n */\\nexport const getListData = (): ListModel[] => [\\n  {\\n    id: \\"id1\\",\\n    title: \\"Lorem ipsum\\",\\n    content: \\"Lorem ipsum dolor sit amet\\",\\n  },\\n  {\\n    id: \\"id2\\",\\n    title: \\"Lorem ipsum\\",\\n    content: \\"Lorem ipsum dolor sit amet\\",\\n  },\\n  {\\n    id: \\"id3\\",\\n    title: \\"Lorem ipsum\\",\\n    content: \\"Lorem ipsum dolor sit amet\\",\\n  },\\n];"\n  }\n]',
+          role: "assistant",
+        },
+        {
+          content: body,
+          role: "user",
+        },
+      ],
     };
 
     const authProvider = new ApiKeyProvider(
@@ -569,7 +208,7 @@ async function callOAI(body: string) {
       authProvider
     );
     const resp = await apiClient.post(
-      "/chat/completions?api-version=2023-05-15",
+      "/chat/completions?api-version=2023-07-01-preview",
       completionReq
     );
     if (resp.status !== 200) {
@@ -579,7 +218,7 @@ async function callOAI(body: string) {
       };
     }
 
-    const response = resp.data.choices[0].text;
+    const response = resp.data.choices[0].message.content;
     return response;
   } catch (e) {
     console.error(e);
@@ -588,60 +227,4 @@ async function callOAI(body: string) {
       body: e,
     };
   }
-}
-
-/**
- * Generates a Teams URL for a file.
- *
- * @param {Object} param0 - The file information.
- * @returns {string} - The Teams URL.
- */
-function generateTeamsUrl({
-  webUrl,
-  mimeType,
-  webDavUrl,
-  sharepointIds,
-}): string {
-  let url = "https://teams.microsoft.com/l/file/";
-
-  // Get the file ID from the web URL
-  const fileIdStartIndex = webUrl.indexOf("sourcedoc=%7B") + 13;
-  const fileIdEndIndex = webUrl.indexOf("%7D");
-  const fileId = webUrl.substring(fileIdStartIndex, fileIdEndIndex);
-  url += fileId + "?";
-
-  // Get the file type from the MIME type
-  let fileTypeString = "";
-  switch (mimeType) {
-    case FilesType.WORD:
-      fileTypeString = "docx";
-      break;
-    case FilesType.EXCEL:
-      fileTypeString = "xlsx";
-      break;
-    case FilesType.PPT:
-      fileTypeString = "pptx";
-      break;
-    case FilesType.VISIO:
-      fileTypeString = "vsd";
-      break;
-    default:
-      fileTypeString = mimeType.substring(
-        mimeType.indexOf("application/" + 12)
-      );
-      break;
-  }
-  url += "fileType=" + fileTypeString;
-
-  // Encode the object URL and add it to the URL
-  const encodedObjectURL = webDavUrl.replace(/:/g, "%3A").replace(/\//g, "%2F");
-  url += "&objectUrl=" + encodedObjectURL;
-
-  // Encode the base URL and add it to the URL
-  const encodedBaseUrl = sharepointIds
-    .replace(/:/g, "%3A")
-    .replace(/\//g, "%2F");
-  url += "&baseUrl=" + encodedBaseUrl;
-
-  return url;
 }

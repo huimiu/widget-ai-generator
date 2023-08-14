@@ -1,40 +1,31 @@
 import "../styles/MyDashboard.css";
 
-import { Image, Spinner } from "@fluentui/react-components";
+import { Button, Input } from "@fluentui/react-components";
 import { BaseDashboard } from "@microsoft/teamsfx-react";
 
-import { loginAction } from "../internal/login";
-import { TeamsUserCredentialContext } from "../internal/singletonContext";
-import { Calendar } from "../widgets/Calendar";
-import { Chart } from "../widgets/Chart";
-import { Collaboration } from "../widgets/Collaboration";
-import { Documents } from "../widgets/Document";
-import { Task } from "../widgets/Task";
-import { Summarize } from "../widgets/Summarize";
+import { generate } from "../services/generate";
+import { CodeCard } from "../widgets/CodeCard";
 
-const scope = ["Files.Read", "Tasks.ReadWrite", "Calendars.Read", "User.Read", "Chat.Read", "Chat.ReadWrite", "Chat.ReadBasic"];
+interface CodeBlock {
+  name: string;
+  code: string;
+}
 
-export default class MyDashboard extends BaseDashboard<any, any> {
+interface MyDashboardState {
+  codeContents: CodeBlock[];
+}
+
+export default class MyDashboard extends BaseDashboard<any, MyDashboardState> {
   override layout(): JSX.Element | undefined {
     return (
       <>
-        {this.state.showLogin === false ? (
-          <>
-            <Image className="img-style" src="bg.png" />
-            <Chart />
-            <div className="one-column">
-              <Calendar />
-              <Task />
-            </div>
-            <Collaboration />
-            <Documents />
-            <Summarize />
-          </>
-        ) : (
-          <div className="spinner-layout">
-            <Spinner size="huge" />
-          </div>
-        )}
+        <div>
+          <Input placeholder="Search" />
+          <Button onClick={() => this.askAI()}>ASK</Button>
+        </div>
+        {this.state.codeContents && this.state.codeContents.map((codeBlock) => {
+          return <CodeCard content={codeBlock} />;
+        })}
       </>
     );
   }
@@ -43,27 +34,10 @@ export default class MyDashboard extends BaseDashboard<any, any> {
     return this.state.isMobile === true ? "dashboard-mobile" : "dashboard";
   }
 
-  async componentDidMount() {
-    super.componentDidMount();
-    if (await this.checkIsConsentNeeded()) {
-      await loginAction(scope);
-    }
-    this.setState({ showLogin: false });
-  }
-
-  /**
-   * Checks if user consent is needed for the specified scopes.
-   * @returns {Promise<boolean>} A Promise that resolves to true if user consent is needed, false otherwise.
-   */
-  async checkIsConsentNeeded(): Promise<boolean> {
-    let needConsent = false;
-    try {
-      // Try to get a token for the specified scopes using the TeamsUserCredentialContext singleton instance.
-      await TeamsUserCredentialContext.getInstance().getCredential().getToken(scope);
-    } catch (error) {
-      // If an error occurs, it means user consent is needed.
-      needConsent = true;
-    }
-    return needConsent;
+  private async askAI() {
+    const resp = await generate("Implement a widget only display a string of Hello world");
+    this.setState({
+      codeContents: resp,
+    });
   }
 }
