@@ -17,6 +17,10 @@ param serverfarmsName string = resourceBaseName
 param functionAppName string = resourceBaseName
 param functionStorageName string = '${resourceBaseName}api'
 param teamsAppId string
+@secure()
+param teamsfxApiOaiApiKey string
+@secure()
+param teamsfxApiOaiEndpoint string
 var oauthAuthority = uri(aadAppOauthAuthorityHost, aadAppTenantId)
 
 var teamsMobileOrDesktopAppClientId = '1fec8e78-bce4-4aaf-ab1b-5451cc387264'
@@ -129,6 +133,14 @@ resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
           name: 'WEBSITE_AUTH_AAD_ACL'
           value: '{"allowed_client_applications": [${allowedClientApplications}]}'
         }
+        {
+          name: 'TEAMSFX_API_OAI_API_KEY'
+          value: teamsfxApiOaiApiKey
+        }
+        {
+          name: 'TEAMSFX_API_OAI_ENDPOINT'
+          value: teamsfxApiOaiEndpoint
+        }
       ]
       ftpsState: 'FtpsOnly'
     }
@@ -156,7 +168,7 @@ resource functionStorage 'Microsoft.Storage/storageAccounts@2021-06-01' = {
   kind: 'StorageV2'
   location: location
   sku: {
-    name: functionStorageSKU// You can follow https://aka.ms/teamsfx-bicep-add-param-tutorial to add functionStorageSKUproperty to provisionParameters to override the default value "Standard_LRS".
+    name: functionStorageSKU // You can follow https://aka.ms/teamsfx-bicep-add-param-tutorial to add functionStorageSKUproperty to provisionParameters to override the default value "Standard_LRS".
   }
 }
 
