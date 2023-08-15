@@ -21,6 +21,7 @@ interface CodeBlock {
 interface MyDashboardState {
   codeContents: CodeBlock[];
   onloading: boolean;
+  inputValue: string;
 }
 
 export default class MyDashboard extends BaseDashboard<any, MyDashboardState> {
@@ -43,6 +44,8 @@ export default class MyDashboard extends BaseDashboard<any, MyDashboardState> {
                 root="ask-input"
                 size="large"
                 placeholder="Describe the requirements for generating widget"
+                value={this.state.inputValue}
+                onChange={(e) => this.setState({ inputValue: e.target.value })}
               />
               <Button
                 onClick={() => this.askAI()}
@@ -67,11 +70,19 @@ export default class MyDashboard extends BaseDashboard<any, MyDashboardState> {
   }
 
   private async askAI() {
-    this.setState({ onloading: true, codeContents: [] });
-    const resp = await generate("Implement a widget only display a string of Hello world");
-    this.setState({
-      codeContents: resp,
-      onloading: false,
-    });
+    try {
+      if (this.state.inputValue) {
+        this.setState({ onloading: true, codeContents: [] });
+        const resp = await generate(this.state.inputValue);
+        this.setState({
+          codeContents: resp,
+          onloading: false,
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      this.setState({ onloading: false });
+    }
   }
 }
