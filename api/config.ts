@@ -4,6 +4,9 @@ const config = {
   tenantId: process.env.M365_TENANT_ID,
   clientId: process.env.M365_CLIENT_ID,
   clientSecret: process.env.M365_CLIENT_SECRET,
+  oaiApiKey: process.env.OAI_API_KEY,
+  oaiEndpoint: process.env.OAI_ENDPOINT,
+  oaiUrl: process.env.OAI_URL,
 };
 
 export default config;

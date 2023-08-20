@@ -134,11 +134,11 @@ resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
           value: '{"allowed_client_applications": [${allowedClientApplications}]}'
         }
         {
-          name: 'TEAMSFX_API_OAI_API_KEY'
+          name: 'OAI_API_KEY'
           value: teamsfxApiOaiApiKey
         }
         {
-          name: 'TEAMSFX_API_OAI_ENDPOINT'
+          name: 'OAI_ENDPOINT'
           value: teamsfxApiOaiEndpoint
         }
       ]

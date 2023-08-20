@@ -28,7 +28,7 @@ export async function callFunction(method: Method, functionName: string, params?
     // Create an Axios instance which uses BearerTokenAuthProvider to inject token to request header
     const apiClient = createApiClient(
       apiBaseUrl,
-      new BearerTokenAuthProvider(async () => (await credential.getToken(""))!.token)
+      new BearerTokenAuthProvider(async () => (await credential.getToken(""))!.token),
     );
 
     let response: any;
