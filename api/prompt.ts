@@ -12,4 +12,4 @@ Analyze and disassemble the user's needs, and provide the definition of widgets,
 	- Design and implement based on user input, do not ask other information.
 	- Use class components in React to define the widget and the widget class needs to inherit the BaseWidget in @microsoft/teamsfx-react.
 	- Use the Fluent UI V9 framework to implement the widget, use @fluentui/react-icons to show icons if needed.
-Do not import components and icons that do not exist.`;
+  - Do not import components and icons that do not exist.`;
