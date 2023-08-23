@@ -1,5 +1,8 @@
 # AI-Driven Widget Code Generation
 
+## Overview
+[![demo]](./public/widget-code-generator.mp4)
+
 ## Run locally
 1. run vsts-npm-auth to get an Azure Artifacts token added to your user-level .npmrc file.
     ```bash
